@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="theme-color" content="#1a2744">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dachausbau">
+<link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dachausbau Kosten</title>
+<style>
+  :root {
+    --navy:#1a2744; --navy2:#243560; --blue:#3b82f6;
+    --green:#10b981; --amber:#f59e0b; --red:#ef4444;
+    --card-shadow:0 2px 12px rgba(0,0,0,0.07);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#eef2f7; min-height:100vh; padding-bottom:110px; }
+
+  /* HEADER */
+  .header { background:linear-gradient(135deg,var(--navy),var(--navy2)); color:#fff; padding:48px 18px 16px; }
+  .header-sub { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-bottom:2px; }
+  .header-title { font-size:20px; font-weight:800; letter-spacing:-.02em; }
+
+  /* BOTTOM NAV — tall enough to clear tiiny.host banner (~50px) */
+  .nav { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #e5e7eb;
+         display:flex; align-items:center; justify-content:space-around;
+         padding:10px 0 38px; /* 38px bottom padding clears the tiiny banner */
+         z-index:100; box-shadow:0 -4px 20px rgba(0,0,0,.08); }
+  .nav-btn { display:flex; flex-direction:column; align-items:center; gap:2px; background:none; border:none;
+             cursor:pointer; padding:4px 16px; opacity:.35; transition:opacity .2s; }
+  .nav-btn.active { opacity:1; }
+  .nav-btn span { font-size:20px; }
+  .nav-btn label { font-size:10px; font-weight:700; color:var(--navy); letter-spacing:.04em; pointer-events:none; }
+  .nav-fab { width:56px; height:56px; border-radius:50%; border:none;
+             background:linear-gradient(135deg,var(--navy),var(--blue)); color:#fff; font-size:28px;
+             cursor:pointer; display:flex; align-items:center; justify-content:center;
+             box-shadow:0 4px 18px rgba(59,130,246,.5); margin-top:-20px; }
+
+  /* SCREENS */
+  .screen { display:none; padding:14px 16px 0; }
+  .screen.active { display:block; }
+  .card { background:#fff; border-radius:16px; padding:16px; margin-bottom:12px; box-shadow:var(--card-shadow); }
+
+  /* BUDGET HERO */
+  .budget-hero { background:linear-gradient(135deg,var(--navy),var(--navy2)); border-radius:20px; padding:20px;
+                 margin-bottom:14px; color:#fff; box-shadow:0 8px 32px rgba(26,39,68,.4); }
+  .budget-hero-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
+  .budget-label { font-size:10px; opacity:.6; letter-spacing:.12em; text-transform:uppercase; margin-bottom:2px; }
+  .budget-amount { font-size:26px; font-weight:800; letter-spacing:-.02em; cursor:pointer; }
+  .budget-edit-hint { font-size:9px; opacity:.5; margin-top:1px; }
+  .progress-bar { background:rgba(255,255,255,.15); border-radius:99px; height:10px; overflow:hidden; margin-bottom:8px; }
+  .progress-fill { height:100%; border-radius:99px; transition:width .6s ease; }
+  .progress-pct { font-size:11px; opacity:.7; }
+  .budget-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:14px; }
+  .budget-stat { background:rgba(255,255,255,.08); border-radius:12px; padding:10px 6px; }
+  .stat-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px; }
+  .stat-val { font-size:13px; font-weight:800; }
+
+  /* QUICK STATS */
+  .quick-stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .qs-card { background:#fff; border-radius:14px; padding:14px 16px; display:flex; align-items:center; gap:10px; box-shadow:var(--card-shadow); }
+  .qs-icon { font-size:24px; }
+  .qs-num { font-size:22px; font-weight:800; color:var(--navy); line-height:1; }
+  .qs-lbl { font-size:10px; color:#9ca3af; margin-top:2px; }
+
+  /* SWIPEABLE ENTRY CARD */
+  .swipe-wrapper { position:relative; overflow:hidden; border-radius:14px; margin-bottom:10px; }
+  .swipe-delete-bg { position:absolute; right:0; top:0; bottom:0; width:80px;
+                     background:var(--red); display:flex; align-items:center; justify-content:center;
+                     border-radius:14px; }
+  .swipe-delete-bg span { font-size:22px; }
+  .entry-card { background:#fff; border-radius:14px; padding:14px 16px; display:flex; gap:10px;
+                align-items:flex-start; box-shadow:var(--card-shadow); cursor:pointer;
+                position:relative; transition:transform .2s ease; will-change:transform; touch-action:pan-y; }
+  .entry-main { flex:1; min-width:0; }
+  .entry-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
+  .entry-firma { font-weight:700; font-size:14px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:55%; }
+  .entry-amount { font-size:14px; font-weight:800; color:var(--navy); }
+  .entry-meta { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .tag { font-size:10px; background:#f0f4f8; color:#6b7280; border-radius:6px; padding:2px 7px; font-weight:600; }
+  .entry-date { font-size:10px; color:#9ca3af; }
+  .entry-diff { font-size:10px; font-weight:700; }
+  .entry-desc { font-size:11px; color:#9ca3af; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .status-badge { flex-shrink:0; border-radius:8px; padding:5px 8px; font-size:10px; font-weight:700;
+                  display:flex; align-items:center; gap:4px; cursor:pointer; }
+  .status-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+
+  /* SECTION */
+  .section-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .section-title { font-size:12px; font-weight:700; color:#374151; }
+  .see-all { font-size:11px; color:var(--blue); background:none; border:none; cursor:pointer; font-weight:600; }
+
+  /* FILTERS */
+  .filters { display:flex; gap:7px; overflow-x:auto; padding-bottom:4px; margin-bottom:10px; scrollbar-width:none; }
+  .filters::-webkit-scrollbar { display:none; }
+  .filter-btn { flex-shrink:0; padding:6px 12px; border-radius:99px; border:none; cursor:pointer; font-size:11px; font-weight:600; }
+
+  /* FORM */
+  .form-group { margin-bottom:14px; }
+  .form-label { font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:4px; }
+  .form-input { width:100%; padding:10px 12px; border-radius:10px; border:1.5px solid #e5e7eb; font-size:15px;
+                font-family:inherit; outline:none; background:#f9fafb; transition:border-color .2s; }
+  .form-input:focus { border-color:var(--blue); }
+  select.form-input { appearance:none; }
+  textarea.form-input { resize:none; }
+  .status-row { display:flex; gap:8px; }
+  .status-opt { flex:1; padding:8px 4px; border-radius:10px; border:2px solid #e5e7eb; background:#f9fafb;
+                color:#9ca3af; font-size:11px; font-weight:700; cursor:pointer;
+                display:flex; align-items:center; justify-content:center; gap:4px; }
+  .btn-primary { width:100%; padding:14px; border-radius:12px; border:none;
+                 background:linear-gradient(135deg,var(--navy),var(--blue)); color:#fff;
+                 font-size:15px; font-weight:700; cursor:pointer; margin-top:4px; }
+  .btn-danger { width:100%; margin-top:10px; padding:12px; border-radius:12px;
+                border:1.5px solid #fecaca; background:#fff7f7; color:var(--red); font-size:13px; font-weight:700; cursor:pointer; }
+
+  /* AUSWERTUNG */
+  .kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; }
+  .kpi-box { background:#f9fafb; border-radius:10px; padding:10px 12px; }
+  .kpi-lbl { font-size:9px; color:#9ca3af; text-transform:uppercase; letter-spacing:.08em; }
+  .kpi-val { font-size:15px; font-weight:800; margin-top:2px; }
+  .gewerk-card { background:#fff; border-radius:14px; padding:14px 16px; margin-bottom:10px; box-shadow:var(--card-shadow); }
+  .gewerk-head { display:flex; justify-content:space-between; margin-bottom:8px; }
+  .gewerk-name { font-weight:700; font-size:14px; color:var(--navy); }
+  .gewerk-count { font-size:11px; color:#9ca3af; }
+  .gewerk-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
+  .gewerk-stat { background:#f9fafb; border-radius:8px; padding:6px 10px; }
+  .gewerk-stat-lbl { font-size:9px; color:#9ca3af; text-transform:uppercase; letter-spacing:.07em; }
+  .gewerk-stat-val { font-size:12px; font-weight:700; }
+
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:flex-end; z-index:300; }
+  .modal-box { background:#fff; border-radius:20px 20px 0 0; padding:24px; width:100%; }
+  .modal-title { font-size:16px; font-weight:700; margin-bottom:8px; }
+  .modal-text { font-size:13px; color:#6b7280; margin-bottom:20px; }
+  .modal-btns { display:flex; gap:10px; }
+  .btn-cancel { flex:1; padding:12px; border-radius:10px; border:1.5px solid #e5e7eb; background:#f9fafb; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn-del { flex:1; padding:12px; border-radius:10px; border:none; background:var(--red); color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
+
+  /* BUDGET EDIT MODAL */
+  .budget-modal-inner { padding:24px; }
+  .budget-modal-inner h2 { font-size:18px; font-weight:800; color:var(--navy); margin-bottom:6px; }
+  .budget-modal-inner p { font-size:13px; color:#6b7280; margin-bottom:18px; }
+  .budget-input-wrap { position:relative; margin-bottom:18px; }
+  .budget-input-wrap input { width:100%; padding:14px 16px 14px 36px; border-radius:12px; border:2px solid #e5e7eb;
+                              font-size:22px; font-weight:800; color:var(--navy); outline:none; background:#f9fafb; font-family:inherit; }
+  .budget-input-wrap input:focus { border-color:var(--blue); }
+  .budget-input-wrap .euro { position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:18px; font-weight:700; color:#9ca3af; }
+
+  .hidden { display:none !important; }
+  .empty-state { text-align:center; color:#9ca3af; margin-top:40px; font-size:14px; }
+
+  /* Swipe hint text */
+  .swipe-hint { font-size:10px; color:#9ca3af; text-align:center; margin-bottom:6px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-sub">Dachausbau Tracking</div>
+  <div class="header-title" id="headerTitle">Übersicht</div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="screen active" id="screen-dashboard">
+  <div class="budget-hero">
+    <div class="budget-hero-top">
+      <div>
+        <div class="budget-label">Gesamtbudget</div>
+        <div class="budget-amount" id="db-budget" onclick="openBudgetModal()" title="Tippen zum Bearbeiten">170.000 €</div>
+        <div class="budget-edit-hint">✏️ Tippen zum Ändern</div>
+      </div>
+      <div style="font-size:28px" id="db-ampel">🟢</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="db-progress" style="width:0%;background:#10b981"></div></div>
+    <div class="progress-pct" id="db-pct">0% verbraucht</div>
+    <div class="budget-stats">
+      <div class="budget-stat"><div class="stat-label" style="color:#10b981">Bezahlt</div><div class="stat-val" id="db-bezahlt">0 €</div></div>
+      <div class="budget-stat"><div class="stat-label" style="color:#f59e0b">Offen</div><div class="stat-val" id="db-offen">0 €</div></div>
+      <div class="budget-stat"><div class="stat-label" style="color:#60a5fa">Rest</div><div class="stat-val" id="db-rest">170.000 €</div></div>
+    </div>
+  </div>
+  <div class="quick-stats">
+    <div class="qs-card"><div class="qs-icon">📄</div><div><div class="qs-num" id="db-count">0</div><div class="qs-lbl">Rechnungen</div></div></div>
+    <div class="qs-card"><div class="qs-icon">⚠️</div><div><div class="qs-num" id="db-open">0</div><div class="qs-lbl">Offene Pos.</div></div></div>
+  </div>
+  <div class="section-head">
+    <div class="section-title">LETZTE EINTRÄGE</div>
+    <button class="see-all" onclick="goTo('liste')">Alle →</button>
+  </div>
+  <div id="db-recent"></div>
+</div>
+
+<!-- LISTE -->
+<div class="screen" id="screen-liste">
+  <div class="filters" id="filter-gewerk"></div>
+  <div class="filters" id="filter-status"></div>
+  <div class="swipe-hint" id="swipe-hint" style="display:none">← Nach links wischen zum Löschen</div>
+  <div id="liste-items"></div>
+</div>
+
+<!-- NEU / EDIT -->
+<div class="screen" id="screen-neu">
+  <div class="card">
+    <div class="form-group">
+      <label class="form-label">Datum</label>
+      <input type="date" class="form-input" id="f-datum">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Firma / Lieferant</label>
+      <input type="text" class="form-input" id="f-firma" placeholder="z.B. Zimmerei Huber">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Gewerk</label>
+      <select class="form-input" id="f-gewerk"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Beschreibung</label>
+      <input type="text" class="form-input" id="f-beschreibung" placeholder="z.B. Dachstuhl">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Rechnungs-Nr.</label>
+      <input type="text" class="form-input" id="f-rechnungsNr" placeholder="z.B. RE-001">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Angebotsbetrag (€)</label>
+      <input type="number" class="form-input" id="f-angebot" placeholder="0" inputmode="decimal">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Rechnungsbetrag (€)</label>
+      <input type="number" class="form-input" id="f-rechnung" placeholder="0" inputmode="decimal">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Zahlungsstatus</label>
+      <div class="status-row" id="status-row"></div>
+    </div>
+    <div class="form-group" id="zahldatum-group" style="display:none">
+      <label class="form-label">Zahlungsdatum</label>
+      <input type="date" class="form-input" id="f-zahlungsDatum">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notizen</label>
+      <textarea class="form-input" id="f-notizen" rows="3" placeholder="Optionale Anmerkungen..."></textarea>
+    </div>
+    <button class="btn-primary" id="btn-save" onclick="saveEntry()">+ Eintrag hinzufügen</button>
+    <button class="btn-danger hidden" id="btn-delete" onclick="confirmDelete()">🗑 Eintrag löschen</button>
+  </div>
+</div>
+
+<!-- AUSWERTUNG -->
+<div class="screen" id="screen-auswertung">
+  <div class="card">
+    <div class="section-title" style="margin-bottom:10px" id="aw-ampel-label">BUDGET-STATUS 🟢</div>
+    <div class="kpi-grid">
+      <div class="kpi-box"><div class="kpi-lbl">Budget</div><div class="kpi-val" style="color:var(--navy)" id="aw-budget">170.000 €</div></div>
+      <div class="kpi-box"><div class="kpi-lbl">Bezahlt</div><div class="kpi-val" style="color:var(--green)" id="aw-bezahlt">0 €</div></div>
+      <div class="kpi-box"><div class="kpi-lbl">Offen</div><div class="kpi-val" style="color:var(--amber)" id="aw-offen">0 €</div></div>
+      <div class="kpi-box"><div class="kpi-lbl">Restbudget</div><div class="kpi-val" id="aw-rest">170.000 €</div></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-bottom:4px">
+        <span>0 €</span><span id="aw-pct">0% verbraucht</span><span id="aw-budget-label">170.000 €</span>
+      </div>
+      <div style="background:#f3f4f6;border-radius:99px;height:8px;overflow:hidden;margin-bottom:3px">
+        <div id="aw-bar1" style="height:100%;width:0%;background:var(--green);border-radius:99px;transition:width .5s"></div>
+      </div>
+      <div style="background:#f3f4f6;border-radius:99px;height:4px;overflow:hidden">
+        <div id="aw-bar2" style="height:100%;width:0%;background:#fbbf24;border-radius:99px;transition:width .5s"></div>
+      </div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:3px">Grün = bezahlt · Gelb = inkl. offen</div>
+    </div>
+  </div>
+  <div class="section-title" style="margin-bottom:8px">NACH GEWERK</div>
+  <div id="aw-gewerke"></div>
+  <button onclick="exportExcel()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1a6b3a,#22c55e);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:20px;display:flex;align-items:center;justify-content:center;gap:8px;">
+    <span>📥</span> Als Excel exportieren
+  </button>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="nav">
+  <button class="nav-btn active" id="nav-dashboard" onclick="goTo('dashboard')">
+    <span>🏠</span><label>Übersicht</label>
+  </button>
+  <button class="nav-btn" id="nav-liste" onclick="goTo('liste')">
+    <span>📋</span><label>Liste</label>
+  </button>
+  <button class="nav-fab" onclick="newEntry()">+</button>
+  <button class="nav-btn" id="nav-auswertung" onclick="goTo('auswertung')">
+    <span>📊</span><label>Auswertung</label>
+  </button>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay hidden" id="modal-delete">
+  <div class="modal-box">
+    <div class="modal-title">Eintrag löschen?</div>
+    <div class="modal-text">Diese Aktion kann nicht rückgängig gemacht werden.</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-delete')">Abbrechen</button>
+      <button class="btn-del" onclick="doDelete()">Löschen</button>
+    </div>
+  </div>
+</div>
+
+<!-- BUDGET MODAL -->
+<div class="modal-overlay hidden" id="modal-budget">
+  <div class="modal-box">
+    <div class="modal-title">Budget ändern</div>
+    <div class="modal-text">Gib dein aktuelles Gesamtbudget ein.</div>
+    <div class="budget-input-wrap">
+      <span class="euro">€</span>
+      <input type="number" id="budget-input" inputmode="numeric" placeholder="170000">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-budget')">Abbrechen</button>
+      <button class="btn-primary" style="margin-top:0" onclick="saveBudget()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const GEWERKE = ["Zimmermann","Dachdecker","Gerüstbauer","Elektriker","Sanitär/Heizung",
+  "Trockenbau","Fensterbau","Maler","Bodenleger","Schlosser","Statiker/Planung","Materialien","Sonstiges"];
+const STATUS_LIST = ["Offen","Bezahlt","Storniert"];
+const STATUS_STYLE = {
+  Bezahlt:   {bg:"#d1fae5",text:"#065f46",dot:"#10b981"},
+  Offen:     {bg:"#fef3c7",text:"#92400e",dot:"#f59e0b"},
+  Storniert: {bg:"#f3f4f6",text:"#6b7280",dot:"#9ca3af"}
+};
+
+// ── Persistent state ──────────────────────────────────────────────────────────
+let BUDGET = parseFloat(localStorage.getItem('dach_budget')) || 170000;
+let entries = JSON.parse(localStorage.getItem('dach_entries') || 'null') || [
+  {id:1,datum:"2024-03-15",firma:"Zimmerei Huber",gewerk:"Zimmermann",beschreibung:"Dachstuhl",rechnungsNr:"RE-001",angebot:28000,rechnung:27500,status:"Bezahlt",zahlungsDatum:"2024-03-28",notizen:""},
+  {id:2,datum:"2024-04-02",firma:"Dach & Co",gewerk:"Dachdecker",beschreibung:"Dacheindeckung",rechnungsNr:"RE-002",angebot:18000,rechnung:18500,status:"Bezahlt",zahlungsDatum:"2024-04-20",notizen:"Inkl. Dämmung"},
+  {id:3,datum:"2024-04-10",firma:"Müller Gerüste",gewerk:"Gerüstbauer",beschreibung:"Gerüst Auf-/Abbau",rechnungsNr:"RE-003",angebot:4200,rechnung:4200,status:"Bezahlt",zahlungsDatum:"2024-04-25",notizen:""},
+  {id:4,datum:"2024-05-01",firma:"Elektro Schmidt",gewerk:"Elektriker",beschreibung:"Elektroinstallation DG",rechnungsNr:"RE-004",angebot:12000,rechnung:0,status:"Offen",zahlungsDatum:"",notizen:"Termin läuft"}
+];
+let nextId = entries.reduce((m,e)=>Math.max(m,e.id),0)+1;
+let editId = null;
+let deleteId = null;
+let filterGewerk = 'Alle';
+let filterStatus = 'Alle';
+let formStatus = 'Offen';
+
+function saveData()   { localStorage.setItem('dach_entries', JSON.stringify(entries)); }
+function saveBudgetLS() { localStorage.setItem('dach_budget', BUDGET); }
+
+// ── Formatting ────────────────────────────────────────────────────────────────
+function fmt(n) {
+  if(n==null||isNaN(n)) return '–';
+  return new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);
+}
+function fmtShort(n) {
+  if(n==null||isNaN(n)) return '–';
+  if(Math.abs(n)>=1000) return (n/1000).toFixed(1).replace('.',',')+' k€';
+  return fmt(n);
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+function fmtDate(d) { if(!d) return ''; return d.split('-').reverse().join('.'); }
+
+// ── Budget modal ──────────────────────────────────────────────────────────────
+function openBudgetModal() {
+  document.getElementById('budget-input').value = BUDGET;
+  document.getElementById('modal-budget').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('budget-input').focus(), 100);
+}
+function saveBudget() {
+  const val = parseFloat(document.getElementById('budget-input').value);
+  if(val > 0) { BUDGET = val; saveBudgetLS(); renderAll(); }
+  closeModal('modal-budget');
+}
+
+// ── Modals ────────────────────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function confirmDelete() { document.getElementById('modal-delete').classList.remove('hidden'); }
+function doDelete() {
+  const id = deleteId !== null ? deleteId : editId;
+  entries = entries.filter(e=>e.id!==id);
+  saveData(); closeModal('modal-delete');
+  deleteId = null; editId = null;
+  renderAll();
+  if(document.getElementById('screen-neu').classList.contains('active')) goTo('liste');
+}
+
+// ── Entry card with swipe-to-delete ──────────────────────────────────────────
+function makeEntryCard(e, showSwipe) {
+  const st = STATUS_STYLE[e.status]||STATUS_STYLE['Offen'];
+  const diff = (e.rechnung&&e.angebot) ? e.rechnung-e.angebot : null;
+  const displayAmt = e.rechnung ? fmt(e.rechnung) : e.angebot ? '~'+fmt(e.angebot) : '–';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'swipe-wrapper';
+
+  // Red delete background
+  const bg = document.createElement('div');
+  bg.className = 'swipe-delete-bg';
+  bg.innerHTML = '<span>🗑️</span>';
+  wrapper.appendChild(bg);
+
+  const card = document.createElement('div');
+  card.className = 'entry-card';
+  card.innerHTML = `
+    <div class="entry-main">
+      <div class="entry-top">
+        <div class="entry-firma">${e.firma||'–'}</div>
+        <div class="entry-amount">${displayAmt}</div>
+      </div>
+      <div class="entry-meta">
+        <span class="tag">${e.gewerk}</span>
+        <span class="entry-date">${fmtDate(e.datum)}</span>
+        ${diff!==null&&diff!==0?`<span class="entry-diff" style="color:${diff>0?'var(--red)':'var(--green)'}">
+          ${diff>0?'▲':'▼'}${fmt(Math.abs(diff))}</span>`:''}
+      </div>
+      ${e.beschreibung?`<div class="entry-desc">${e.beschreibung}</div>`:''}
+    </div>
+    <div class="status-badge" style="background:${st.bg};color:${st.text};border:1px solid ${st.dot}20"
+      id="badge-${e.id}">
+      <span class="status-dot" style="background:${st.dot}"></span>${e.status}
+    </div>`;
+
+  // Tap status badge → toggle status
+  card.querySelector(`#badge-${e.id}`).addEventListener('click', ev => {
+    ev.stopPropagation();
+    toggleStatus(e.id);
+  });
+
+  // Tap card body → edit
+  card.addEventListener('click', () => startEdit(e));
+
+  // Swipe-to-delete
+  if(showSwipe) addSwipeDelete(card, wrapper, e.id);
+
+  wrapper.appendChild(card);
+  return wrapper;
+}
+
+function addSwipeDelete(card, wrapper, id) {
+  let startX = 0, currentX = 0, dragging = false;
+  const THRESHOLD = 70;
+
+  card.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    dragging = true;
+    card.style.transition = 'none';
+  }, {passive:true});
+
+  card.addEventListener('touchmove', e => {
+    if(!dragging) return;
+    currentX = e.touches[0].clientX - startX;
+    if(currentX > 0) currentX = 0; // only left swipe
+    card.style.transform = `translateX(${currentX}px)`;
+  }, {passive:true});
+
+  card.addEventListener('touchend', () => {
+    dragging = false;
+    card.style.transition = 'transform .2s ease';
+    if(currentX < -THRESHOLD) {
+      // Snap to show delete, then confirm
+      card.style.transform = 'translateX(-80px)';
+      deleteId = id;
+      setTimeout(() => {
+        document.getElementById('modal-delete').classList.remove('hidden');
+        // If user cancels, snap back
+        document.querySelector('#modal-delete .btn-cancel').onclick = () => {
+          closeModal('modal-delete');
+          card.style.transform = 'translateX(0)';
+          deleteId = null;
+        };
+      }, 150);
+    } else {
+      card.style.transform = 'translateX(0)';
+    }
+    currentX = 0;
+  });
+}
+
+// ── Toggle status ─────────────────────────────────────────────────────────────
+function toggleStatus(id) {
+  entries = entries.map(e => {
+    if(e.id!==id) return e;
+    const order = ['Offen','Bezahlt','Storniert'];
+    const next = order[(order.indexOf(e.status)+1)%order.length];
+    return {...e, status:next, zahlungsDatum:next==='Bezahlt'?today():e.zahlungsDatum};
+  });
+  saveData(); renderAll();
+}
+
+// ── Render functions ──────────────────────────────────────────────────────────
+function renderAll() { renderDashboard(); renderListe(); renderAuswertung(); }
+
+function renderDashboard() {
+  const bezahlt = entries.filter(e=>e.status==='Bezahlt').reduce((s,e)=>s+(e.rechnung||0),0);
+  const offen   = entries.filter(e=>e.status==='Offen').reduce((s,e)=>s+(e.angebot||0),0);
+  const rest    = BUDGET - bezahlt - offen;
+  const pct     = BUDGET>0 ? Math.min((bezahlt+offen)/BUDGET,1) : 0;
+  const barColor= pct>.95?'#ef4444':pct>.80?'#f59e0b':'#10b981';
+
+  document.getElementById('db-budget').textContent = fmt(BUDGET);
+  document.getElementById('db-ampel').textContent  = pct>.95?'🔴':pct>.80?'🟡':'🟢';
+  document.getElementById('db-progress').style.cssText = `width:${(pct*100).toFixed(1)}%;background:${barColor}`;
+  document.getElementById('db-pct').textContent    = (pct*100).toFixed(1)+'% verbraucht';
+  document.getElementById('db-bezahlt').textContent= fmtShort(bezahlt);
+  document.getElementById('db-offen').textContent  = fmtShort(offen);
+  document.getElementById('db-rest').textContent   = fmtShort(rest);
+  document.getElementById('db-rest').style.color   = rest<0?'#ef4444':'#93c5fd';
+  document.getElementById('db-count').textContent  = entries.filter(e=>e.status!=='Storniert').length;
+  document.getElementById('db-open').textContent   = entries.filter(e=>e.status==='Offen').length;
+
+  const rec = document.getElementById('db-recent');
+  rec.innerHTML = '';
+  [...entries].sort((a,b)=>b.datum.localeCompare(a.datum)).slice(0,3)
+    .forEach(e => rec.appendChild(makeEntryCard(e, false)));
+  if(!entries.length) rec.innerHTML='<div class="empty-state">Noch keine Einträge.</div>';
+}
+
+function renderListe() {
+  const filtered = entries.filter(e=>
+    (filterGewerk==='Alle'||e.gewerk===filterGewerk) &&
+    (filterStatus==='Alle'||e.status===filterStatus)
+  ).sort((a,b)=>b.datum.localeCompare(a.datum));
+
+  document.getElementById('swipe-hint').style.display = filtered.length ? 'block' : 'none';
+
+  const el = document.getElementById('liste-items');
+  el.innerHTML = '';
+  if(!filtered.length) { el.innerHTML='<div class="empty-state">Keine Einträge gefunden.</div>'; return; }
+  filtered.forEach(e => el.appendChild(makeEntryCard(e, true)));
+}
+
+function renderAuswertung() {
+  const bezahlt = entries.filter(e=>e.status==='Bezahlt').reduce((s,e)=>s+(e.rechnung||0),0);
+  const offen   = entries.filter(e=>e.status==='Offen').reduce((s,e)=>s+(e.angebot||0),0);
+  const rest    = BUDGET - bezahlt - offen;
+  const pct     = BUDGET>0 ? Math.min((bezahlt+offen)/BUDGET,1) : 0;
+
+  document.getElementById('aw-ampel-label').textContent = 'BUDGET-STATUS '+(pct>.95?'🔴':pct>.80?'🟡':'🟢');
+  document.getElementById('aw-budget').textContent  = fmt(BUDGET);
+  document.getElementById('aw-bezahlt').textContent = fmt(bezahlt);
+  document.getElementById('aw-offen').textContent   = fmt(offen);
+  document.getElementById('aw-rest').textContent    = fmt(rest);
+  document.getElementById('aw-rest').style.color    = rest<0?'var(--red)':'var(--blue)';
+  document.getElementById('aw-pct').textContent     = (pct*100).toFixed(1)+'% verbraucht';
+  document.getElementById('aw-budget-label').textContent = fmt(BUDGET);
+  document.getElementById('aw-bar1').style.width    = (BUDGET>0?Math.min(bezahlt/BUDGET,1)*100:0).toFixed(1)+'%';
+  document.getElementById('aw-bar2').style.width    = (pct*100).toFixed(1)+'%';
+
+  const gw = document.getElementById('aw-gewerke');
+  gw.innerHTML = '';
+  GEWERKE.forEach(g => {
+    const rows = entries.filter(e=>e.gewerk===g);
+    if(!rows.length) return;
+    const ang  = rows.reduce((s,e)=>s+e.angebot,0);
+    const rech = rows.reduce((s,e)=>s+e.rechnung,0);
+    const bez  = rows.filter(e=>e.status==='Bezahlt').reduce((s,e)=>s+e.rechnung,0);
+    const off  = rows.filter(e=>e.status==='Offen').reduce((s,e)=>s+e.angebot,0);
+    const pctG = BUDGET>0?rech/BUDGET:0;
+    const d = document.createElement('div');
+    d.className = 'gewerk-card';
+    d.innerHTML = `
+      <div class="gewerk-head"><div class="gewerk-name">${g}</div><div class="gewerk-count">${rows.length} Pos.</div></div>
+      <div class="gewerk-grid">
+        <div class="gewerk-stat"><div class="gewerk-stat-lbl">Angebote</div><div class="gewerk-stat-val" style="color:#6b7280">${fmtShort(ang)}</div></div>
+        <div class="gewerk-stat"><div class="gewerk-stat-lbl">Rechnungen</div><div class="gewerk-stat-val" style="color:var(--navy)">${fmtShort(rech)}</div></div>
+        <div class="gewerk-stat"><div class="gewerk-stat-lbl">Bezahlt</div><div class="gewerk-stat-val" style="color:var(--green)">${fmtShort(bez)}</div></div>
+        <div class="gewerk-stat"><div class="gewerk-stat-lbl">Offen</div><div class="gewerk-stat-val" style="color:var(--amber)">${fmtShort(off)}</div></div>
+      </div>
+      <div style="background:#f3f4f6;border-radius:99px;height:5px;overflow:hidden">
+        <div style="height:100%;width:${(pctG*100).toFixed(1)}%;background:var(--blue);border-radius:99px"></div>
+      </div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:3px">${(pctG*100).toFixed(1)}% vom Budget</div>`;
+    gw.appendChild(d);
+  });
+}
+
+function renderFilters() {
+  const fg = document.getElementById('filter-gewerk');
+  fg.innerHTML = '';
+  ['Alle',...GEWERKE].forEach(g => {
+    const b = document.createElement('button');
+    b.className='filter-btn';
+    b.textContent=g;
+    b.style.cssText=filterGewerk===g?'background:var(--navy);color:#fff':'background:#f3f4f6;color:#6b7280';
+    b.onclick=()=>{filterGewerk=g;renderFilters();renderListe();};
+    fg.appendChild(b);
+  });
+  const fs = document.getElementById('filter-status');
+  fs.innerHTML = '';
+  ['Alle',...STATUS_LIST].forEach(s => {
+    const b = document.createElement('button');
+    b.className='filter-btn';
+    b.textContent=s;
+    b.style.cssText=filterStatus===s?'background:var(--blue);color:#fff':'background:#f3f4f6;color:#9ca3af';
+    b.onclick=()=>{filterStatus=s;renderFilters();renderListe();};
+    fs.appendChild(b);
+  });
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+const TITLES={dashboard:'Übersicht',liste:'Alle Einträge',neu:'Neuer Eintrag',auswertung:'Auswertung'};
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+screen).classList.add('active');
+  const nb=document.getElementById('nav-'+screen);
+  if(nb) nb.classList.add('active');
+  document.getElementById('headerTitle').textContent=TITLES[screen]||'';
+  if(screen==='liste'){renderFilters();renderListe();}
+  if(screen==='auswertung') renderAuswertung();
+  if(screen==='dashboard') renderDashboard();
+  window.scrollTo(0,0);
+}
+
+function renderStatusRow() {
+  const row=document.getElementById('status-row');
+  row.innerHTML='';
+  STATUS_LIST.forEach(s=>{
+    const st=STATUS_STYLE[s];
+    const btn=document.createElement('button');
+    btn.className='status-opt'+(formStatus===s?' active-status':'');
+    btn.style.cssText=formStatus===s?`background:${st.bg};color:${st.text};border-color:${st.dot}`:'';
+    btn.innerHTML=`<span class="status-dot" style="background:${formStatus===s?st.dot:'#d1d5db'}"></span>${s}`;
+    btn.onclick=()=>{formStatus=s;renderStatusRow();document.getElementById('zahldatum-group').style.display=s==='Bezahlt'?'block':'none';};
+    row.appendChild(btn);
+  });
+}
+
+function newEntry() {
+  editId=null; formStatus='Offen';
+  ['f-datum','f-firma','f-beschreibung','f-rechnungsNr','f-angebot','f-rechnung','f-zahlungsDatum','f-notizen']
+    .forEach(id=>document.getElementById(id).value=id==='f-datum'?today():'');
+  document.getElementById('f-gewerk').value=GEWERKE[0];
+  document.getElementById('zahldatum-group').style.display='none';
+  document.getElementById('btn-save').textContent='+ Eintrag hinzufügen';
+  document.getElementById('btn-delete').classList.add('hidden');
+  renderStatusRow(); goTo('neu');
+}
+
+function startEdit(e) {
+  editId=e.id; formStatus=e.status;
+  document.getElementById('f-datum').value=e.datum||'';
+  document.getElementById('f-firma').value=e.firma||'';
+  document.getElementById('f-gewerk').value=e.gewerk||GEWERKE[0];
+  document.getElementById('f-beschreibung').value=e.beschreibung||'';
+  document.getElementById('f-rechnungsNr').value=e.rechnungsNr||'';
+  document.getElementById('f-angebot').value=e.angebot||'';
+  document.getElementById('f-rechnung').value=e.rechnung||'';
+  document.getElementById('f-zahlungsDatum').value=e.zahlungsDatum||'';
+  document.getElementById('f-notizen').value=e.notizen||'';
+  document.getElementById('zahldatum-group').style.display=e.status==='Bezahlt'?'block':'none';
+  document.getElementById('btn-save').textContent='✓ Änderungen speichern';
+  document.getElementById('btn-delete').classList.remove('hidden');
+  renderStatusRow();
+  document.getElementById('headerTitle').textContent='Eintrag bearbeiten';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-neu').classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function saveEntry() {
+  const entry = {
+    id:editId||nextId++,
+    datum:document.getElementById('f-datum').value,
+    firma:document.getElementById('f-firma').value,
+    gewerk:document.getElementById('f-gewerk').value,
+    beschreibung:document.getElementById('f-beschreibung').value,
+    rechnungsNr:document.getElementById('f-rechnungsNr').value,
+    angebot:parseFloat(document.getElementById('f-angebot').value)||0,
+    rechnung:parseFloat(document.getElementById('f-rechnung').value)||0,
+    status:formStatus,
+    zahlungsDatum:document.getElementById('f-zahlungsDatum').value,
+    notizen:document.getElementById('f-notizen').value
+  };
+  if(editId) entries=entries.map(e=>e.id===editId?entry:e);
+  else entries.push(entry);
+  saveData(); editId=null; goTo('dashboard');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function init() {
+  const sel=document.getElementById('f-gewerk');
+  GEWERKE.forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;sel.appendChild(o);});
+  renderStatusRow(); renderFilters(); renderAll();
+}
+
+init();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: Kostenverfolgung ──────────────────────────────────────────────
+  const headerRow = ["Nr.","Datum","Firma / Lieferant","Gewerk","Beschreibung",
+    "Rechnungs-Nr.","Angebotsbetrag (€)","Rechnungsbetrag (€)",
+    "Differenz (€)","Abweichung %","Zahlungsstatus","Zahlungsdatum","Notizen"];
+
+  const dataRows = [...entries]
+    .sort((a,b)=>a.datum.localeCompare(b.datum))
+    .map((e, i) => {
+      const diff = (e.rechnung||0) - (e.angebot||0);
+      const abw  = e.angebot ? diff / e.angebot : null;
+      return [
+        i+1,
+        e.datum ? fmtDate(e.datum) : '',
+        e.firma || '',
+        e.gewerk || '',
+        e.beschreibung || '',
+        e.rechnungsNr || '',
+        e.angebot || 0,
+        e.rechnung || 0,
+        diff,
+        abw,
+        e.status || '',
+        e.zahlungsDatum ? fmtDate(e.zahlungsDatum) : '',
+        e.notizen || ''
+      ];
+    });
+
+  // Summary rows at top
+  const bezahlt = entries.filter(e=>e.status==='Bezahlt').reduce((s,e)=>s+(e.rechnung||0),0);
+  const offen   = entries.filter(e=>e.status==='Offen').reduce((s,e)=>s+(e.angebot||0),0);
+  const rest    = BUDGET - bezahlt - offen;
+
+  const ws1Data = [
+    ["Dachausbau – Kostenverfolgung"],
+    [],
+    ["Gesamtbudget (€):", BUDGET, "", "Bezahlt (€):", bezahlt, "", "Offen (€):", offen, "", "Restbudget (€):", rest],
+    [],
+    headerRow,
+    ...dataRows,
+    [],
+    ["GESAMT", "", "", "", "", "", 
+      entries.reduce((s,e)=>s+(e.angebot||0),0),
+      entries.reduce((s,e)=>s+(e.rechnung||0),0)
+    ]
+  ];
+
+  const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
+
+  // Column widths
+  ws1['!cols'] = [5,12,24,20,30,14,16,16,14,12,14,14,30].map(w=>({wch:w}));
+
+  // Merge title cell
+  ws1['!merges'] = [{s:{r:0,c:0}, e:{r:0,c:12}}];
+
+  // Style header row (row index 4)
+  const headerRowIdx = 4;
+  headerRow.forEach((_, ci) => {
+    const addr = XLSX.utils.encode_cell({r: headerRowIdx, c: ci});
+    if(!ws1[addr]) ws1[addr] = {v: headerRow[ci]};
+    ws1[addr].s = {
+      font: {bold:true, color:{rgb:"FFFFFF"}},
+      fill: {fgColor:{rgb:"1F4E79"}},
+      alignment: {horizontal:"center", wrapText:true}
+    };
+  });
+
+  XLSX.utils.book_append_sheet(wb, ws1, "Kostenverfolgung");
+
+  // ── Sheet 2: Gewerk-Auswertung ─────────────────────────────────────────────
+  const gwHeaders = ["Gewerk","Angebote (€)","Rechnungen (€)","Bezahlt (€)","Offen (€)","Differenz (€)","Abw. %","Anteil Budget"];
+  const gwRows = GEWERKE
+    .map(g => {
+      const rows = entries.filter(e=>e.gewerk===g);
+      if(!rows.length) return null;
+      const ang  = rows.reduce((s,e)=>s+e.angebot,0);
+      const rech = rows.reduce((s,e)=>s+e.rechnung,0);
+      const bez  = rows.filter(e=>e.status==='Bezahlt').reduce((s,e)=>s+e.rechnung,0);
+      const off  = rows.filter(e=>e.status==='Offen').reduce((s,e)=>s+e.angebot,0);
+      return [g, ang, rech, bez, off, rech-ang, ang?((rech-ang)/ang):null, BUDGET?(rech/BUDGET):null];
+    })
+    .filter(Boolean);
+
+  const ws2Data = [
+    ["Auswertung nach Gewerk"],
+    [],
+    gwHeaders,
+    ...gwRows,
+    ["GESAMT",
+      gwRows.reduce((s,r)=>s+r[1],0),
+      gwRows.reduce((s,r)=>s+r[2],0),
+      gwRows.reduce((s,r)=>s+r[3],0),
+      gwRows.reduce((s,r)=>s+r[4],0),
+    ]
+  ];
+
+  const ws2 = XLSX.utils.aoa_to_sheet(ws2Data);
+  ws2['!cols'] = [22,14,14,14,14,14,12,14].map(w=>({wch:w}));
+  ws2['!merges'] = [{s:{r:0,c:0},e:{r:0,c:7}}];
+  XLSX.utils.book_append_sheet(wb, ws2, "Gewerk-Auswertung");
+
+  // ── Sheet 3: Budget-Übersicht ──────────────────────────────────────────────
+  const pct = BUDGET > 0 ? (bezahlt+offen)/BUDGET : 0;
+  const ampel = pct>.95?'KRITISCH >95%':pct>.80?'ACHTUNG >80%':'OK';
+  const ws3Data = [
+    ["Budget-Übersicht"],
+    [],
+    ["Gesamtbudget",         BUDGET],
+    ["Bezahlte Kosten",      bezahlt],
+    ["Offene Rechnungen",    offen],
+    ["Gesamtkosten",         bezahlt+offen],
+    ["Restbudget",           rest],
+    ["Budget verbraucht",    pct],
+    ["Anzahl Rechnungen",    entries.filter(e=>e.status!=='Storniert').length],
+    ["Budget-Status",        ampel],
+    ["Exportiert am",        new Date().toLocaleDateString('de-DE')],
+  ];
+  const ws3 = XLSX.utils.aoa_to_sheet(ws3Data);
+  ws3['!cols'] = [{wch:24},{wch:20}];
+  ws3['!merges'] = [{s:{r:0,c:0},e:{r:0,c:1}}];
+  XLSX.utils.book_append_sheet(wb, ws3, "Budget-Übersicht");
+
+  // ── Download ───────────────────────────────────────────────────────────────
+  const date = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `Dachausbau_${date}.xlsx`);
+}
+</script>
+<script>
+if('serviceWorker' in navigator) {
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
