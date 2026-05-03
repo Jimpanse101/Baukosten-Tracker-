@@ -423,12 +423,16 @@ textarea.form-input{resize:none}
   </div>
   <div class="section-title" style="margin-bottom:8px">NACH GEWERK</div>
   <div id="aw-gewerke"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-    <button onclick="exportJSON()" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1a6b3a,#22c55e);color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-      <span>📤</span> JSON Export
+  <div style="margin-bottom:20px">
+    <div style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">BACKUP / EXPORT</div>
+    <button onclick="exportDownload()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1a6b3a,#22c55e);color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+      <span>💾</span> Backup speichern (.json)
     </button>
-    <button onclick="document.getElementById('modal-import').classList.remove('hidden')" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1a3a6b,var(--blue));color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-      <span>📥</span> JSON Import
+    <button onclick="exportShare()" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+      <span>📤</span> Teilen (WhatsApp, E-Mail…)
+    </button>
+    <button onclick="document.getElementById('modal-import').classList.remove('hidden')" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--blue);background:var(--surface);color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span>📥</span> Backup laden (Import)
     </button>
   </div>
 </div>
@@ -1227,92 +1231,100 @@ function saveEntry(){
   else entries.push(entry);
   saveData(); editId=null;
 
-  // Visual feedback so user sees something happened
-  const btn=document.getElementById('btn-save');
-  btn.textContent='✓ Gespeichert!';
-  btn.style.background='linear-gradient(135deg,#1a6b3a,#22c55e)';
-  btn.disabled=true;
-
-  setTimeout(()=>{
-    btn.textContent=editId?'✓ Speichern':'+ Eintrag hinzufügen';
-    btn.style.background='';
-    btn.disabled=false;
-    renderAll();
-    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-    document.getElementById('screen-dashboard').classList.add('active');
-    document.getElementById('nav-dashboard').classList.add('active');
-    document.getElementById('headerTitle').textContent='Übersicht';
-    window.scrollTo(0,0);
-  }, 400);
+  // Sofort zum Dashboard wechseln
+  renderAll();
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-dashboard').classList.add('active');
+  document.getElementById('nav-dashboard').classList.add('active');
+  document.getElementById('headerTitle').textContent='Übersicht';
+  window.scrollTo(0,0);
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // JSON EXPORT / IMPORT
 // ═══════════════════════════════════════════════════════════════════
-function exportJSON(){
-  const payload = {
-    version: 2,
-    exportDate: today(),
-    projects,
-    entries: projEntries()
-  };
-  const jsonText = JSON.stringify(payload, null, 2);
-
-  // Primary: Native Share (Android PWA) – direkt ohne Modal
-  if(navigator.share){
-    navigator.share({
-      title: 'Baukosten Tracker – ' + proj().name,
-      text: jsonText
-    }).catch(()=>showJSONModal(jsonText));
-    return;
-  }
-  // Fallback: Modal mit Text zum Kopieren
-  showJSONModal(jsonText);
+function getExportPayload(){
+  return JSON.stringify({
+    version:2, exportDate:today(),
+    projects, entries:projEntries()
+  }, null, 2);
 }
 
+// Datei direkt in Downloads speichern
+function exportDownload(){
+  const text = getExportPayload();
+  const filename = 'Baukosten_'+proj().name.replace(/\s/g,'_')+'_'+today()+'.json';
+  try {
+    const blob = new Blob([text], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+  } catch(e) {
+    // Fallback: data URI
+    try {
+      const a = document.createElement('a');
+      a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(text);
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch(e2) {
+      showJSONModal(text);
+    }
+  }
+}
+
+// Teilen via Android Share Sheet
+function exportShare(){
+  const text = getExportPayload();
+  if(navigator.share){
+    navigator.share({
+      title:'Baukosten Backup – '+proj().name,
+      text:text
+    }).catch(()=>showJSONModal(text));
+  } else {
+    showJSONModal(text);
+  }
+}
+
+// Fallback Modal
 function showJSONModal(text){
-  document.getElementById('json-content').value = text;
+  document.getElementById('json-content').value=text;
   document.getElementById('modal-json-export').classList.remove('hidden');
 }
 
 function copyJSON(){
-  const text = document.getElementById('json-content').value;
-  const confirm = document.getElementById('json-copy-confirm');
-
-  // Primary: Native Android Share (funktioniert immer in installierten PWAs)
+  const text=document.getElementById('json-content').value;
+  const confirm=document.getElementById('json-copy-confirm');
   if(navigator.share){
-    navigator.share({
-      title: 'Baukosten Tracker Export',
-      text: text
-    }).then(()=>{
-      confirm.textContent='✅ Geteilt!';
-      confirm.style.color='var(--green)';
-      confirm.style.display='block';
-      setTimeout(()=>confirm.style.display='none', 2500);
-    }).catch(()=>copyFallback(text));
+    navigator.share({title:'Baukosten Backup',text:text})
+      .then(()=>{confirm.textContent='✅ Geteilt!';confirm.style.color='var(--green)';confirm.style.display='block';setTimeout(()=>confirm.style.display='none',2500);})
+      .catch(()=>fallbackCopy(text));
     return;
   }
-  copyFallback(text);
+  fallbackCopy(text);
 }
 
-function copyFallback(text){
-  const confirm = document.getElementById('json-copy-confirm');
-  // Textarea manuell selektieren
-  const ta = document.getElementById('json-content');
-  ta.focus();
-  ta.select();
-  ta.setSelectionRange(0, 99999);
-  try {
+function fallbackCopy(text){
+  const confirm=document.getElementById('json-copy-confirm');
+  const ta=document.getElementById('json-content');
+  ta.focus();ta.select();ta.setSelectionRange(0,99999);
+  try{
     document.execCommand('copy');
-    confirm.textContent='✅ Kopiert!';
-    confirm.style.color='var(--green)';
-  } catch(e){
-    confirm.textContent='👆 Text oben antippen → Alles markieren → Kopieren';
+    confirm.textContent='✅ Kopiert!';confirm.style.color='var(--green)';
+  }catch(e){
+    confirm.textContent='👆 Text antippen → Alles auswählen → Kopieren';
     confirm.style.color='var(--amber)';
   }
   confirm.style.display='block';
-  setTimeout(()=>confirm.style.display='none', 4000);
+  setTimeout(()=>confirm.style.display='none',4000);
 }
 
 function handleJSONFileImport(input){
