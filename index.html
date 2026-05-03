@@ -327,11 +327,17 @@ textarea.form-input{resize:none}
     <!-- ATTACHMENT ZONE -->
     <div class="form-group">
       <label class="form-label">📎 Foto / PDF anhängen</label>
-      <div class="attach-zone" onclick="document.getElementById('attach-input').click()">
-        <div style="font-size:28px;margin-bottom:4px">📷</div>
-        <div style="font-size:13px;font-weight:700;color:var(--text2)">Foto oder PDF auswählen</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Kamera, Galerie oder Dateien</div>
-        <input type="file" id="attach-input" accept="image/*,application/pdf,.pdf" style="display:none" onchange="handleAttachment(this)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="attach-zone" onclick="document.getElementById('attach-input-cam').click()" style="padding:12px">
+          <div style="font-size:24px;margin-bottom:4px">📷</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text2)">Foto aufnehmen</div>
+          <input type="file" id="attach-input-cam" accept="image/*" capture="environment" style="display:none" onchange="handleAttachment(this)">
+        </div>
+        <div class="attach-zone" onclick="document.getElementById('attach-input').click()" style="padding:12px">
+          <div style="font-size:24px;margin-bottom:4px">📂</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text2)">Datei / PDF</div>
+          <input type="file" id="attach-input" accept="*/*" style="display:none" onchange="handleAttachment(this)">
+        </div>
       </div>
       <div class="attach-preview" id="attach-preview"></div>
       <!-- AI Result -->
