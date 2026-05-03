@@ -1259,18 +1259,15 @@ function exportJSON(){
   };
   const jsonText = JSON.stringify(payload, null, 2);
 
-  // Try native share first (Android PWA)
-  if(navigator.share && navigator.canShare){
-    const file = new File([jsonText], 'Baukosten_'+today()+'.json', {type:'application/json'});
-    try{
-      if(navigator.canShare({files:[file]})){
-        navigator.share({files:[file], title:'Baukosten Export'})
-          .catch(()=>showJSONModal(jsonText));
-        return;
-      }
-    }catch(e){}
+  // Primary: Native Share (Android PWA) – direkt ohne Modal
+  if(navigator.share){
+    navigator.share({
+      title: 'Baukosten Tracker – ' + proj().name,
+      text: jsonText
+    }).catch(()=>showJSONModal(jsonText));
+    return;
   }
-  // Always show modal as fallback
+  // Fallback: Modal mit Text zum Kopieren
   showJSONModal(jsonText);
 }
 
@@ -1283,38 +1280,39 @@ function copyJSON(){
   const text = document.getElementById('json-content').value;
   const confirm = document.getElementById('json-copy-confirm');
 
-  // Method 1: Modern clipboard API
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(()=>{
+  // Primary: Native Android Share (funktioniert immer in installierten PWAs)
+  if(navigator.share){
+    navigator.share({
+      title: 'Baukosten Tracker Export',
+      text: text
+    }).then(()=>{
+      confirm.textContent='✅ Geteilt!';
+      confirm.style.color='var(--green)';
       confirm.style.display='block';
       setTimeout(()=>confirm.style.display='none', 2500);
     }).catch(()=>copyFallback(text));
     return;
   }
-  // Method 2: execCommand fallback (works in most PWAs)
   copyFallback(text);
 }
 
 function copyFallback(text){
   const confirm = document.getElementById('json-copy-confirm');
+  // Textarea manuell selektieren
+  const ta = document.getElementById('json-content');
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, 99999);
   try {
-    const ta = document.getElementById('json-content');
-    ta.select();
-    ta.setSelectionRange(0, 99999); // Mobile
-    const ok = document.execCommand('copy');
-    if(ok){
-      confirm.textContent='✅ Kopiert!';
-      confirm.style.color='var(--green)';
-    } else {
-      confirm.textContent='⚠️ Bitte manuell alles markieren und kopieren';
-      confirm.style.color='var(--amber)';
-    }
+    document.execCommand('copy');
+    confirm.textContent='✅ Kopiert!';
+    confirm.style.color='var(--green)';
   } catch(e){
-    confirm.textContent='⚠️ Bitte manuell alles markieren und kopieren';
+    confirm.textContent='👆 Text oben antippen → Alles markieren → Kopieren';
     confirm.style.color='var(--amber)';
   }
   confirm.style.display='block';
-  setTimeout(()=>confirm.style.display='none', 3000);
+  setTimeout(()=>confirm.style.display='none', 4000);
 }
 
 function handleJSONFileImport(input){
