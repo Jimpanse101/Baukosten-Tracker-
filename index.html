@@ -331,7 +331,7 @@ textarea.form-input{resize:none}
         <div style="font-size:28px;margin-bottom:4px">📷</div>
         <div style="font-size:13px;font-weight:700;color:var(--text2)">Foto oder PDF auswählen</div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">Kamera, Galerie oder Dateien</div>
-        <input type="file" id="attach-input" accept="image/*,application/pdf" style="display:none" onchange="handleAttachment(this)">
+        <input type="file" id="attach-input" accept="image/*,application/pdf,.pdf" style="display:none" onchange="handleAttachment(this)">
       </div>
       <div class="attach-preview" id="attach-preview"></div>
       <!-- AI Result -->
@@ -382,14 +382,6 @@ textarea.form-input{resize:none}
     <div class="form-group hidden" id="zahldatum-group">
       <label class="form-label">Zahlungsdatum</label>
       <input type="date" class="form-input" id="f-zahlungsDatum">
-    </div>
-    <div class="form-group">
-      <label class="form-label">Wiederkehrend</label>
-      <select class="form-input" id="f-recurring">
-        <option value="">Nicht wiederkehrend</option>
-        <option value="monthly">Monatlich</option>
-        <option value="quarterly">Vierteljährlich</option>
-      </select>
     </div>
     <div class="form-group">
       <label class="form-label">Notizen</label>
@@ -1065,7 +1057,6 @@ function makeEntryCard(e,swipe){
         <span class="entry-date">${fmtDate(e.datum)}</span>
         ${diff!==null&&diff!==0?`<span class="entry-diff" style="color:${diff>0?'var(--red)':'var(--green)'}">
           ${diff>0?'▲':'▼'}${fmt(Math.abs(diff))}</span>`:''}
-        ${e.recurring?`<span class="tag">🔄</span>`:''}
       </div>
       ${e.beschreibung?`<div class="entry-desc">${e.beschreibung}</div>`:''}
       ${attachHtml}${dueHtml}
@@ -1140,7 +1131,6 @@ function newEntry(){
   ['f-datum','f-firma','f-beschreibung','f-rechnungsNr','f-angebot','f-rechnung','f-zahlungsDatum','f-notizen','f-faellig']
     .forEach(id=>document.getElementById(id).value=id==='f-datum'?today():'');
   document.getElementById('f-gewerk').value=GEWERKE[0];
-  document.getElementById('f-recurring').value='';
   document.getElementById('zahldatum-group').classList.add('hidden');
   document.getElementById('btn-save').textContent='+ Eintrag hinzufügen';
   document.getElementById('btn-delete').classList.add('hidden');
@@ -1162,7 +1152,6 @@ function startEdit(e){
   document.getElementById('f-rechnung').value=e.rechnung||'';
   document.getElementById('f-zahlungsDatum').value=e.zahlungsDatum||'';
   document.getElementById('f-notizen').value=e.notizen||'';
-  document.getElementById('f-recurring').value=e.recurring||'';
   document.getElementById('zahldatum-group').style.display=e.status==='Bezahlt'?'block':'none';
   document.getElementById('btn-save').textContent='✓ Speichern';
   document.getElementById('btn-delete').classList.remove('hidden');
@@ -1189,22 +1178,12 @@ function saveEntry(){
     status:formStatus,
     zahlungsDatum:document.getElementById('f-zahlungsDatum').value,
     notizen:document.getElementById('f-notizen').value,
-    recurring:document.getElementById('f-recurring').value,
+    recurring:'',
     attachments:formAttachments
   };
   if(editId)entries=entries.map(e=>e.id===editId?entry:e);
   else{
     entries.push(entry);
-    // Handle recurring
-    if(entry.recurring&&entry.datum){
-      const d=new Date(entry.datum);
-      const months=entry.recurring==='monthly'?3:2;
-      for(let i=1;i<=months;i++){
-        const nd=new Date(d);
-        nd.setMonth(nd.getMonth()+(entry.recurring==='monthly'?i:i*3));
-        entries.push({...entry,id:nextId++,datum:nd.toISOString().split('T')[0],status:'Offen',rechnung:0,zahlungsDatum:''});
-      }
-    }
   }
   saveData();editId=null;goTo('dashboard');
 }
