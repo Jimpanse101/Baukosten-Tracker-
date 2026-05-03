@@ -1223,11 +1223,29 @@ function saveEntry(){
     recurring:'',
     attachments:formAttachments
   };
-  if(editId)entries=entries.map(e=>e.id===editId?entry:e);
-  else{
-    entries.push(entry);
-  }
-  saveData();editId=null;goTo('dashboard');
+  if(editId) entries=entries.map(e=>e.id===editId?entry:e);
+  else entries.push(entry);
+  saveData(); editId=null;
+
+  // Visual feedback so user sees something happened
+  const btn=document.getElementById('btn-save');
+  btn.textContent='✓ Gespeichert!';
+  btn.style.background='linear-gradient(135deg,#1a6b3a,#22c55e)';
+  btn.disabled=true;
+
+  setTimeout(()=>{
+    btn.textContent=editId?'✓ Speichern':'+ Eintrag hinzufügen';
+    btn.style.background='';
+    btn.disabled=false;
+    renderAll();
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('screen-dashboard').classList.add('active');
+    document.getElementById('nav-dashboard').classList.add('active');
+    document.getElementById('headerTitle').textContent='Übersicht';
+    window.scrollTo(0,0);
+  }, 400);
+}
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1263,13 +1281,41 @@ function showJSONModal(text){
 }
 
 function copyJSON(){
-  const ta = document.getElementById('json-content');
-  ta.select();
-  navigator.clipboard.writeText(ta.value).then(()=>{
-    const c = document.getElementById('json-copy-confirm');
-    c.style.display = 'block';
-    setTimeout(()=>c.style.display='none', 2500);
-  }).catch(()=>document.execCommand('copy'));
+  const text = document.getElementById('json-content').value;
+  const confirm = document.getElementById('json-copy-confirm');
+
+  // Method 1: Modern clipboard API
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>{
+      confirm.style.display='block';
+      setTimeout(()=>confirm.style.display='none', 2500);
+    }).catch(()=>copyFallback(text));
+    return;
+  }
+  // Method 2: execCommand fallback (works in most PWAs)
+  copyFallback(text);
+}
+
+function copyFallback(text){
+  const confirm = document.getElementById('json-copy-confirm');
+  try {
+    const ta = document.getElementById('json-content');
+    ta.select();
+    ta.setSelectionRange(0, 99999); // Mobile
+    const ok = document.execCommand('copy');
+    if(ok){
+      confirm.textContent='✅ Kopiert!';
+      confirm.style.color='var(--green)';
+    } else {
+      confirm.textContent='⚠️ Bitte manuell alles markieren und kopieren';
+      confirm.style.color='var(--amber)';
+    }
+  } catch(e){
+    confirm.textContent='⚠️ Bitte manuell alles markieren und kopieren';
+    confirm.style.color='var(--amber)';
+  }
+  confirm.style.display='block';
+  setTimeout(()=>confirm.style.display='none', 3000);
 }
 
 function handleJSONFileImport(input){
