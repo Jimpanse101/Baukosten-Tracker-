@@ -425,11 +425,11 @@ textarea.form-input{resize:none}
   <div class="section-title" style="margin-bottom:8px">NACH GEWERK</div>
   <div id="aw-gewerke"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-    <button onclick="exportCSV()" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1a6b3a,#22c55e);color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-      <span>📤</span> CSV Export
+    <button onclick="exportJSON()" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1a6b3a,#22c55e);color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+      <span>📤</span> JSON Export
     </button>
     <button onclick="document.getElementById('modal-import').classList.remove('hidden')" style="padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1a3a6b,var(--blue));color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
-      <span>📥</span> CSV Import
+      <span>📥</span> JSON Import
     </button>
   </div>
 </div>
@@ -503,30 +503,35 @@ textarea.form-input{resize:none}
   </div>
 </div>
 
-<div class="modal-overlay hidden" id="modal-csv">
+<!-- JSON EXPORT MODAL -->
+<div class="modal-overlay hidden" id="modal-json-export">
   <div class="modal-box">
-    <div class="modal-title">📤 CSV Export</div>
-    <div class="modal-text">Alles markieren und kopieren oder teilen.</div>
-    <textarea id="csv-content" readonly style="width:100%;height:140px;border-radius:10px;border:1.5px solid var(--border);padding:10px;font-size:11px;font-family:monospace;background:var(--surface2);color:var(--text);resize:none;margin-bottom:12px" onclick="this.select()"></textarea>
+    <div class="modal-title">📤 JSON Export</div>
+    <div class="modal-text">Kopiere den Text und speichere ihn als <b>.json</b> Datei – z.B. in Notizen, E-Mail oder WhatsApp.</div>
+    <textarea id="json-content" readonly style="width:100%;height:160px;border-radius:10px;border:1.5px solid var(--border);padding:10px;font-size:10px;font-family:monospace;background:var(--surface2);color:var(--text);resize:none;margin-bottom:12px" onclick="this.select()"></textarea>
     <div class="modal-btns">
-      <button class="btn-cancel" onclick="closeModal('modal-csv')">Schließen</button>
-      <button class="btn-primary" style="margin-top:0" onclick="copyCSV()">📋 Kopieren</button>
+      <button class="btn-cancel" onclick="closeModal('modal-json-export')">Schließen</button>
+      <button class="btn-primary" style="margin-top:0" onclick="copyJSON()">📋 Kopieren</button>
     </div>
-    <div id="copy-confirm" style="display:none;text-align:center;color:var(--green);font-size:12px;font-weight:700;margin-top:10px">✅ Kopiert!</div>
+    <div id="json-copy-confirm" style="display:none;text-align:center;color:var(--green);font-size:12px;font-weight:700;margin-top:10px">✅ Kopiert!</div>
   </div>
 </div>
 
+<!-- JSON IMPORT MODAL -->
 <div class="modal-overlay hidden" id="modal-import">
   <div class="modal-box">
-    <div class="modal-title">📥 CSV importieren</div>
-    <div class="modal-text">Wähle eine exportierte CSV-Datei. Duplikate werden übersprungen.</div>
-    <label style="display:block;border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;background:var(--surface2);margin-bottom:14px">
+    <div class="modal-title">📥 JSON importieren</div>
+    <div class="modal-text">Wähle eine exportierte JSON-Datei oder füge den JSON-Text direkt ein.</div>
+    <label style="display:block;border:2px dashed var(--border);border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:var(--surface2);margin-bottom:10px">
       <div style="font-size:28px;margin-bottom:4px">📂</div>
-      <div style="font-size:13px;font-weight:700;color:var(--text2)">CSV-Datei auswählen</div>
-      <input type="file" accept=".csv" style="display:none" onchange="handleImport(this)">
+      <div style="font-size:13px;font-weight:700;color:var(--text2)">JSON-Datei auswählen</div>
+      <input type="file" accept=".json" style="display:none" onchange="handleJSONFileImport(this)">
     </label>
-    <div id="import-result" style="display:none;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:14px"></div>
-    <button class="btn-cancel" onclick="closeModal('modal-import');document.getElementById('import-result').style.display='none'">Schließen</button>
+    <div style="text-align:center;font-size:11px;color:var(--text3);margin-bottom:8px">— oder JSON-Text einfügen —</div>
+    <textarea id="json-paste-input" style="width:100%;height:100px;border-radius:10px;border:1.5px solid var(--border);padding:10px;font-size:11px;font-family:monospace;background:var(--surface2);color:var(--text);resize:none;margin-bottom:10px" placeholder='{"entries":[...],"projects":[...]}'></textarea>
+    <button class="btn-primary" style="margin-bottom:10px" onclick="handleJSONTextImport()">📥 Text importieren</button>
+    <div id="import-result" style="display:none;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:10px"></div>
+    <button class="btn-cancel" onclick="closeModal('modal-import');document.getElementById('import-result').style.display='none';document.getElementById('json-paste-input').value=''">Schließen</button>
   </div>
 </div>
 
@@ -1205,95 +1210,119 @@ function saveEntry(){
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CSV EXPORT / IMPORT
+// JSON EXPORT / IMPORT
 // ═══════════════════════════════════════════════════════════════════
-function exportCSV(){
-  const COLS=["id","projectId","datum","faellig","firma","gewerk","beschreibung","rechnungsNr","angebot","rechnung","status","zahlungsDatum","notizen","recurring"];
-  const escape=v=>{const s=String(v??'');return s.includes(',')||s.includes('"')||s.includes('\n')?'"'+s.replace(/"/g,'""')+'"':s};
-  const pe=projEntries();
-  const lines=[
-    '# Baukosten Export | Budget:'+proj().budget+'| Projekt:'+proj().name,
-    COLS.join(','),
-    ...[...pe].sort((a,b)=>a.datum.localeCompare(b.datum)).map(e=>COLS.map(c=>escape(e[c]??'')).join(','))
-  ];
-  const csvText=lines.join('\r\n');
-  if(navigator.share&&navigator.canShare){
-    const file=new File(['\uFEFF'+csvText],'Baukosten_'+today()+'.csv',{type:'text/csv'});
-    if(navigator.canShare({files:[file]})){navigator.share({files:[file],title:'Baukosten Export'}).catch(()=>showCSVModal(csvText));return}
+function exportJSON(){
+  const payload = {
+    version: 2,
+    exportDate: today(),
+    projects,
+    entries: projEntries()
+  };
+  const jsonText = JSON.stringify(payload, null, 2);
+
+  // Try native share first (Android PWA)
+  if(navigator.share && navigator.canShare){
+    const file = new File([jsonText], 'Baukosten_'+today()+'.json', {type:'application/json'});
+    try{
+      if(navigator.canShare({files:[file]})){
+        navigator.share({files:[file], title:'Baukosten Export'})
+          .catch(()=>showJSONModal(jsonText));
+        return;
+      }
+    }catch(e){}
   }
-  try{
-    const blob=new Blob(['\uFEFF'+csvText],{type:'text/csv;charset=utf-8'});
-    const url=URL.createObjectURL(blob);const a=document.createElement('a');
-    a.href=url;a.download='Baukosten_'+today()+'.csv';
-    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  }catch{showCSVModal(csvText)}
+  // Always show modal as fallback
+  showJSONModal(jsonText);
 }
-function showCSVModal(t){document.getElementById('csv-content').value=t;document.getElementById('modal-csv').classList.remove('hidden')}
-function copyCSV(){
-  const ta=document.getElementById('csv-content');ta.select();
+
+function showJSONModal(text){
+  document.getElementById('json-content').value = text;
+  document.getElementById('modal-json-export').classList.remove('hidden');
+}
+
+function copyJSON(){
+  const ta = document.getElementById('json-content');
+  ta.select();
   navigator.clipboard.writeText(ta.value).then(()=>{
-    const c=document.getElementById('copy-confirm');c.style.display='block';
-    setTimeout(()=>c.style.display='none',2500);
+    const c = document.getElementById('json-copy-confirm');
+    c.style.display = 'block';
+    setTimeout(()=>c.style.display='none', 2500);
   }).catch(()=>document.execCommand('copy'));
 }
-function handleImport(input){
-  const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    try{
-      const text=e.target.result.replace(/^\uFEFF/,'');
-      const lines=text.split(/\r?\n/).filter(l=>l.trim()&&!l.startsWith('#'));
-      if(!lines.length)throw new Error('Datei ist leer');
-      const budgetLine=text.split(/\r?\n/).find(l=>l.startsWith('# Baukosten Export'));
-      if(budgetLine){
-        const m=budgetLine.match(/Budget:(\d+)/);
-        if(m){proj().budget=parseFloat(m[1]);saveProjects()}
-      }
-      const headers=parseCSVLine(lines[0]);
-      const existingIds=new Set(entries.map(e=>String(e.id)));
-      let added=0,skipped=0;
-      for(let i=1;i<lines.length;i++){
-        if(!lines[i].trim())continue;
-        const vals=parseCSVLine(lines[i]);
-        const row={};headers.forEach((h,idx)=>row[h]=vals[idx]??'');
-        if(row.id&&existingIds.has(String(row.id))){skipped++;continue}
-        const entry={
-          id:row.id?parseInt(row.id):nextId++,
-          projectId:currentProjectId,
-          datum:row.datum||'',faellig:row.faellig||'',firma:row.firma||'',
-          gewerk:row.gewerk||GEWERKE[0],beschreibung:row.beschreibung||'',
-          rechnungsNr:row.rechnungsNr||'',
-          angebot:parseFloat(row.angebot)||0,rechnung:parseFloat(row.rechnung)||0,
-          status:STATUS_LIST.includes(row.status)?row.status:'Offen',
-          zahlungsDatum:row.zahlungsDatum||'',notizen:row.notizen||'',
-          recurring:row.recurring||'',attachments:[]
-        };
-        entries.push(entry);existingIds.add(String(entry.id));
-        nextId=Math.max(nextId,entry.id+1);added++;
-      }
-      saveData();renderAll();
-      const res=document.getElementById('import-result');
-      res.style.display='block';
-      res.style.cssText=`display:block;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:14px;background:${added>0?'#d1fae5':'#fef3c7'};color:${added>0?'#065f46':'#92400e'}`;
-      res.textContent=added>0?`✅ ${added} Einträge importiert${skipped?', '+skipped+' übersprungen':''}.`:`⚠️ Keine neuen Einträge.`;
-      input.value='';
-    }catch(err){
-      const res=document.getElementById('import-result');
-      res.style.cssText='display:block;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:14px;background:#fee2e2;color:#991b1b';
-      res.textContent='❌ Fehler: '+err.message;
-    }
-  };
-  reader.readAsText(file,'UTF-8');
+
+function handleJSONFileImport(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { processJSONImport(e.target.result); input.value=''; };
+  reader.readAsText(file, 'UTF-8');
 }
-function parseCSVLine(line){
-  const result=[];let cur='',inQ=false;
-  for(let i=0;i<line.length;i++){
-    const c=line[i];
-    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++}else inQ=!inQ}
-    else if(c===','&&!inQ){result.push(cur);cur=''}
-    else cur+=c;
+
+function handleJSONTextImport(){
+  const text = document.getElementById('json-paste-input').value.trim();
+  if(!text){ showImportResult('❌ Kein Text eingegeben', false); return; }
+  processJSONImport(text);
+}
+
+function processJSONImport(text){
+  try{
+    const data = JSON.parse(text);
+    // Support both full export and raw entries array
+    const importEntries = Array.isArray(data) ? data : (data.entries || []);
+    const importProjects = data.projects || [];
+
+    // Merge projects
+    let projAdded = 0;
+    const existingProjIds = new Set(projects.map(p=>p.id));
+    importProjects.forEach(p=>{
+      if(!existingProjIds.has(p.id)){ projects.push(p); projAdded++; nextProjId=Math.max(nextProjId,p.id+1); }
+    });
+
+    // Merge entries
+    const existingIds = new Set(entries.map(e=>String(e.id)));
+    let added=0, skipped=0;
+    importEntries.forEach(e=>{
+      if(existingIds.has(String(e.id))){ skipped++; return; }
+      const entry = {
+        id: e.id||nextId++, projectId: e.projectId||currentProjectId,
+        datum:e.datum||'', faellig:e.faellig||'', firma:e.firma||'',
+        gewerk:e.gewerk||GEWERKE[0], beschreibung:e.beschreibung||'',
+        rechnungsNr:e.rechnungsNr||'',
+        angebot:parseFloat(e.angebot)||0, rechnung:parseFloat(e.rechnung)||0,
+        status:STATUS_LIST.includes(e.status)?e.status:'Offen',
+        zahlungsDatum:e.zahlungsDatum||'', notizen:e.notizen||'',
+        recurring:e.recurring||'', attachments:e.attachments||[]
+      };
+      entries.push(entry);
+      existingIds.add(String(entry.id));
+      nextId = Math.max(nextId, entry.id+1);
+      added++;
+    });
+
+    saveData(); saveProjects(); renderAll(); renderProjectBar();
+    const msg = `✅ ${added} Einträge importiert${projAdded?' + '+projAdded+' Projekt(e)':''}${skipped?' · '+skipped+' übersprungen':''}`;
+    showImportResult(msg, true);
+  }catch(err){
+    showImportResult('❌ Ungültiges JSON: '+err.message, false);
   }
-  result.push(cur);return result;
+}
+
+function showImportResult(msg, ok){
+  const el = document.getElementById('import-result');
+  el.style.cssText = `display:block;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:10px;background:${ok?'#d1fae5':'#fee2e2'};color:${ok?'#065f46':'#991b1b'}`;
+  el.textContent = msg;
+}
+
+function checkURLImport(){
+  const hash = window.location.hash;
+  if(hash && hash.startsWith('#import=')){
+    try{
+      const data = decodeURIComponent(hash.slice(8));
+      processJSONImport(data);
+      document.getElementById('modal-import').classList.remove('hidden');
+      history.replaceState(null,'',window.location.pathname);
+    }catch(e){}
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
