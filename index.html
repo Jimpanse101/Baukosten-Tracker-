@@ -780,8 +780,11 @@ function handleAttachment(input){
     const dataUrl=e.target.result;
     formAttachments.push({name:file.name,type:file.type,data:dataUrl});
     renderAttachPreview();
-    if(apiKey) extractWithAI(dataUrl,file.type);
-    else document.getElementById('ai-result').classList.remove('hidden');
+    if(apiKey){
+      document.getElementById('ai-result').classList.remove('hidden');
+      extractWithAI(dataUrl,file.type);
+    }
+    // No API key: silently attach the file, no AI box shown
   };
   reader.readAsDataURL(file);
   input.value='';
