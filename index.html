@@ -6,10 +6,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Baukosten">
+<meta name="apple-mobile-web-app-title" content="Baukosten Tracker">
 <link rel="manifest" href="manifest.json">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Baukosten Pro</title>
+<title>Baukosten Tracker</title>
 <style>
 :root {
   --navy:#1a2744; --navy2:#243560; --blue:#3b82f6;
@@ -243,6 +243,7 @@ textarea.form-input{resize:none}
   <div class="header-title" id="headerTitle">Übersicht</div>
   <div class="header-right">
     <button class="icon-btn" onclick="toggleDark()" id="dark-btn">🌙</button>
+    <button class="icon-btn" onclick="document.getElementById('modal-info').classList.remove('hidden')">ℹ️</button>
     <button class="icon-btn" onclick="goTo('einstellungen')">⚙️</button>
   </div>
 </div>
@@ -445,11 +446,11 @@ textarea.form-input{resize:none}
     <div id="gw-budget-settings"></div>
   </div>
   <div class="card">
-    <div class="section-title" style="margin-bottom:4px">KI-ERKENNUNG</div>
-    <div style="font-size:12px;color:var(--text2);margin:8px 0">Claude API Key für automatische PDF/Foto-Erkennung</div>
-    <input type="password" class="form-input" id="api-key-input" placeholder="sk-ant-…" style="margin-bottom:8px">
+    <div class="section-title" style="margin-bottom:4px">KI-ERKENNUNG (GOOGLE GEMINI)</div>
+    <div style="font-size:12px;color:var(--text2);margin:8px 0">Google Gemini API Key für automatische PDF/Foto-Erkennung – kostenlos!</div>
+    <input type="password" class="form-input" id="api-key-input" placeholder="AIza…" style="margin-bottom:8px">
     <button class="btn-primary" style="margin-top:0;padding:10px" onclick="saveApiKey()">API Key speichern</button>
-    <div style="font-size:10px;color:var(--text3);margin-top:6px">Key wird nur lokal gespeichert. Erhältlich auf console.anthropic.com</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px">Kostenlos auf <b>aistudio.google.com</b> → „Get API Key". Key wird nur lokal gespeichert.</div>
   </div>
   <div class="card">
     <div class="section-title" style="margin-bottom:4px">DARSTELLUNG & SICHERHEIT</div>
@@ -463,6 +464,26 @@ textarea.form-input{resize:none}
     </div>
   </div>
   <div style="height:20px"></div>
+</div>
+
+<!-- INFO MODAL -->
+<div class="modal-overlay hidden" id="modal-info">
+  <div class="modal-box">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:48px;margin-bottom:8px">🏗️</div>
+      <div style="font-size:22px;font-weight:800;color:var(--navy)">Baukosten Tracker</div>
+      <div style="font-size:13px;color:var(--blue);font-weight:700;margin-top:4px">v0.1 Beta</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:12px;padding:14px;margin-bottom:14px;font-size:12px;color:var(--text2);line-height:1.6">
+      <div style="margin-bottom:6px">⚠️ <b>Beta-Hinweis:</b> Diese App befindet sich in der Entwicklung. Funktionen können sich ändern.</div>
+      <div style="margin-bottom:6px">💾 <b>Datensicherung:</b> Daten werden lokal gespeichert. Regelmäßig JSON-Export machen!</div>
+      <div>🤖 <b>KI-Erkennung:</b> Nutzt Google Gemini (kostenlos). API Key unter Einstellungen hinterlegen.</div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:16px">
+      Entwickelt mit Claude AI · Anthropic
+    </div>
+    <button class="btn-cancel" onclick="closeModal('modal-info')">Schließen</button>
+  </div>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -813,34 +834,46 @@ async function extractWithAI(dataUrl,mimeType){
   document.getElementById('ai-result').classList.remove('hidden');
   document.getElementById('ai-fields').innerHTML='<div style="color:#0369a1;font-size:12px">⏳ KI analysiert…</div>';
   try {
-    const isImg=mimeType.startsWith('image/');
-    const isPdf=mimeType==='application/pdf';
     const base64=dataUrl.split(',')[1];
-    const contentArr=[];
-    if(isImg){
-      contentArr.push({type:'image',source:{type:'base64',media_type:mimeType,data:base64}});
-    } else if(isPdf){
-      contentArr.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:base64}});
-    }
-    contentArr.push({type:'text',text:`Extrahiere aus diesem Dokument folgende Felder als JSON (nur JSON, kein Text davor/danach):
+    const isImg=mimeType.startsWith('image/');
+    const isPdf=mimeType==='application/pdf'||dataUrl.startsWith('data:application/pdf');
+
+    // Normalize mimeType for Gemini (it needs specific types)
+    const geminiMime = isPdf ? 'application/pdf' : (mimeType||'image/jpeg');
+
+    const prompt = `Extrahiere aus diesem Dokument folgende Felder als reines JSON ohne Markdown oder Backticks:
 {"firma":"","datum":"YYYY-MM-DD","rechnungsNr":"","betrag":0,"beschreibung":""}
-Falls ein Feld nicht erkennbar ist, lasse es leer.`});
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:contentArr}]})
-    });
-    const data=await resp.json();
-    const text=data.content?.[0]?.text||'';
-    const json=JSON.parse(text.replace(/```json|```/g,'').trim());
-    aiExtracted=json;
+Falls ein Feld nicht erkennbar ist, lasse es leer. Betrag als Zahl ohne Währungssymbol.`;
+
+    const body = {
+      contents: [{
+        parts: [
+          { inline_data: { mime_type: geminiMime, data: base64 } },
+          { text: prompt }
+        ]
+      }]
+    };
+
+    const resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }
+    );
+    const data = await resp.json();
+
+    if(data.error) throw new Error(data.error.message||'Gemini Fehler');
+
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+    const clean = text.replace(/```json|```/g,'').trim();
+    const json = JSON.parse(clean);
+    aiExtracted = json;
+
     let html='';
-    if(json.firma) html+=`<div class="ai-field"><span class="ai-field-label">Firma</span><span class="ai-field-val">${json.firma}</span></div>`;
-    if(json.datum) html+=`<div class="ai-field"><span class="ai-field-label">Datum</span><span class="ai-field-val">${fmtDate(json.datum)}</span></div>`;
-    if(json.rechnungsNr) html+=`<div class="ai-field"><span class="ai-field-label">Rechnungs-Nr.</span><span class="ai-field-val">${json.rechnungsNr}</span></div>`;
-    if(json.betrag) html+=`<div class="ai-field"><span class="ai-field-label">Betrag</span><span class="ai-field-val">${fmt(json.betrag)}</span></div>`;
-    if(json.beschreibung) html+=`<div class="ai-field"><span class="ai-field-label">Beschreibung</span><span class="ai-field-val">${json.beschreibung}</span></div>`;
-    if(!html) html='<div style="color:#0369a1;font-size:12px">Keine Felder erkannt</div>';
+    if(json.firma)      html+=`<div class="ai-field"><span class="ai-field-label">Firma</span><span class="ai-field-val">${json.firma}</span></div>`;
+    if(json.datum)      html+=`<div class="ai-field"><span class="ai-field-label">Datum</span><span class="ai-field-val">${fmtDate(json.datum)}</span></div>`;
+    if(json.rechnungsNr)html+=`<div class="ai-field"><span class="ai-field-label">Rechnungs-Nr.</span><span class="ai-field-val">${json.rechnungsNr}</span></div>`;
+    if(json.betrag)     html+=`<div class="ai-field"><span class="ai-field-label">Betrag</span><span class="ai-field-val">${fmt(json.betrag)}</span></div>`;
+    if(json.beschreibung)html+=`<div class="ai-field"><span class="ai-field-label">Beschreibung</span><span class="ai-field-val">${json.beschreibung}</span></div>`;
+    if(!html) html='<div style="color:#0369a1;font-size:12px">Keine Felder erkannt – bitte manuell ausfüllen.</div>';
     document.getElementById('ai-fields').innerHTML=html;
   } catch(err){
     document.getElementById('ai-fields').innerHTML=`<div style="color:var(--red);font-size:12px">Fehler: ${err.message||'KI nicht erreichbar'}</div>`;
